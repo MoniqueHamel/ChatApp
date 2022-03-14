@@ -15,11 +15,11 @@ public class ClientTest {
 //        server.start(6666);
 //    }
 
-    @Test
-    public void givenGreetingClient_whenServerRespondsWhenStarted_thenCorrect() {
-        Client client = new Client();
-        client.startConnection("localhost", 6666);
-        String response = client.sendMessage("hello server");
-        assertEquals("hello client", response);
-    }
+//    @Test
+//    public void givenGreetingClient_whenServerRespondsWhenStarted_thenCorrect() {
+//        Client client = new Client();
+//        client.startConnection("localhost", 6666);
+//        String response = client.sendMessage("hello server");
+//        assertEquals("hello client", response);
+//    }
 }
