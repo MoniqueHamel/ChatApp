@@ -4,8 +4,7 @@ import client.Client;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
+import java.util.Collections;
 
 public class Gui {
 
@@ -16,6 +15,9 @@ public class Gui {
     private JTextArea inputArea;
     private JPanel northPanel;
     private JPanel southPanel;
+    private JPanel westPanel;
+    private JList<String> listOfActiveUsers;
+    ActiveUsersModel userListModel = new ActiveUsersModel();
 
     public static void main(String args[]){
         try {
@@ -77,18 +79,59 @@ public class Gui {
     private void setupGui(){
         northPanel = new JPanel(new GridBagLayout());
         southPanel = new JPanel(new GridBagLayout());
+        westPanel = new JPanel();
+
         GridBagConstraints top = new GridBagConstraints();
-        setGridBagConstraints(top, 0, 0, 1.0, 0.9, true);
+        setGridBagConstraints(top, 1, 0, 1.0, 0.9, true);
 
         GridBagConstraints bottom = new GridBagConstraints();
-        setGridBagConstraints(bottom, 0, 1, 1.0, 0.1, true);
+        setGridBagConstraints(bottom, 1, 1, 1.0, 0.1, true);
+
+        GridBagConstraints left = new GridBagConstraints();
+        setGridBagConstraints(left, 0, 0,1, 1, true);
+        left.gridheight = 2;
 
         setupAndAddMessageBox();
         setupAndAddInputArea();
         setupAndAddSendMessageButton();
+        setupAndAddOnlineClientsPanel();
 
         mainFrame.add(northPanel, top);
         mainFrame.add(southPanel, bottom);
+        mainFrame.add(westPanel, left);
+    }
+
+    private void setupAndAddOnlineClientsPanel(){
+        listOfActiveUsers = new JList<>(userListModel);
+//        listOfActiveUsers.setModel(new AbstractListModel<>() {
+//            @Override
+//            public int getSize() {
+//                return activeUsersList.size();
+//            }
+//
+//            @Override
+//            public String getElementAt(int i) {
+//                return activeUsersList.get(i);
+//            }
+//        });
+//        listOfActiveUsers.addListSelectionListener(new ListSelectionListener() {
+//            @Override
+//            public void valueChanged(ListSelectionEvent event) {
+//            }
+//        });
+
+        GridBagConstraints c = new GridBagConstraints();
+        setGridBagConstraints(c, 0, 0, 0, 0, true);
+
+        westPanel.add(listOfActiveUsers);
+    }
+
+    public void addUserToActiveUserList(String user){
+        userListModel.add(user);
+    }
+
+    public void removeUserFromActiveUserList(String user){
+        userListModel.remove(user);
     }
 
     private void setupAndAddMessageBox(){

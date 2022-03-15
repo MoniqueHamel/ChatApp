@@ -26,9 +26,14 @@ public class Message implements Serializable {
         return new Message(user, message, MessageType.USER_MESSAGE);
     }
 
+    public static Message addActiveUser(String user){
+        return new Message(user, "", MessageType.ADD_ACTIVE_USER);
+    }
+
     public enum MessageType{
         USER_JOINED,
         USER_LEFT,
-        USER_MESSAGE
+        USER_MESSAGE,
+        ADD_ACTIVE_USER
     }
 }

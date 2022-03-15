@@ -51,9 +51,14 @@ public class Client {
                             break;
                         case USER_LEFT:
                             gui.appendTextToMessageBox(message.sender + " has left the chat!");
+                            gui.removeUserFromActiveUserList(message.sender);
                             break;
                         case USER_JOINED:
                             gui.appendTextToMessageBox(message.sender + " has joined the chat!");
+                            gui.addUserToActiveUserList(message.sender);
+                            break;
+                        case ADD_ACTIVE_USER:
+                            gui.addUserToActiveUserList(message.sender);
                             break;
                     }
                 }

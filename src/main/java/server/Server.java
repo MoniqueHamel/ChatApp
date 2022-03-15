@@ -57,6 +57,9 @@ public class Server{
                 System.out.println(clientMap.size());
                 clientMap.forEach((username, handler) -> {
                     handler.sendMessage(Message.userJoined(newClientHandler.username));
+                    if(username != newClientHandler.username) {
+                        newClientHandler.sendMessage(Message.addActiveUser(username));
+                    }
                 });
                 exec.execute(newClientHandler);
             }
