@@ -51,7 +51,11 @@ public class Client {
                 while((message = (Message) in.readObject()) != null) {
                     switch (message.type){
                         case USER_MESSAGE:
-                            gui.appendTextToMessageBox(message.sender + ": " + message.message);
+                            String sender = message.sender;
+                            if (sender.equals(username)){
+                                sender = "You";
+                            }
+                            gui.appendTextToMessageBox(sender + ": " + message.message);
                             break;
                         case USER_LEFT:
                             gui.appendTextToMessageBox(message.sender + " has left the chat!");
