@@ -76,6 +76,7 @@ public class Gui {
             client.setClientUsername(usernameInputField.getText());
             mainFrame.setTitle("ChatApp - " + client.getClientUsername());
             displayMainView();
+            inputArea.requestFocusInWindow();
         });
     }
 
@@ -134,6 +135,7 @@ public class Gui {
             public void valueChanged(ListSelectionEvent event) {
                 if (!event.getValueIsAdjusting()) {
                     switchChat();
+                    inputArea.requestFocusInWindow();
                 }
             }
         });
@@ -215,6 +217,7 @@ public class Gui {
         String text = inputArea.getText();
         client.sendMessage(text, listOfActiveUsers.getSelectedValue());
         inputArea.setText("");
+        inputArea.requestFocusInWindow();
     }
 
     public void appendTextToMessageBox(String text){
