@@ -5,6 +5,8 @@ import common.Message;
 
 import java.io.*;
 import java.net.*;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -14,6 +16,7 @@ public class Client {
     private ObjectInputStream in;
     private String username;
     private ExecutorService exec;
+    private Map<String, String> chatMap;
     Gui gui;
 
     public void startConnection(String ip, int port){
@@ -24,6 +27,7 @@ public class Client {
         } catch (IOException e) {
             e.printStackTrace();
         }
+        chatMap = new HashMap<>();
         gui = new Gui(this);
         gui.displayLoginView();
 
@@ -31,9 +35,9 @@ public class Client {
         exec.execute(this::readMessage);
     }
 
-    public void sendMessage(String msg){
+    public void sendMessage(String msg, String destination){
         try {
-            Message message = Message.createUserMessage(username, msg);
+            Message message = Message.createUserMessage(username, destination, msg);
             out.writeObject(message);
         } catch (IOException e) {
             e.printStackTrace();
@@ -51,11 +55,15 @@ public class Client {
                             break;
                         case USER_LEFT:
                             gui.appendTextToMessageBox(message.sender + " has left the chat!");
-                            gui.removeUserFromActiveUserList(message.sender);
+                            if(!message.sender.equals(username)) {
+                                gui.removeUserFromActiveUserList(message.sender);
+                            }
                             break;
                         case USER_JOINED:
                             gui.appendTextToMessageBox(message.sender + " has joined the chat!");
-                            gui.addUserToActiveUserList(message.sender);
+                            if(!message.sender.equals(username)) {
+                                gui.addUserToActiveUserList(message.sender);
+                            }
                             break;
                         case ADD_ACTIVE_USER:
                             gui.addUserToActiveUserList(message.sender);
@@ -83,11 +91,19 @@ public class Client {
 
     public void setClientUsername(String username){
         this.username = username;
-        sendMessage(username);
+        sendMessage(username, null);
     }
 
     public String getClientUsername(){
         return username;
+    }
+
+    public void saveChat(String user, String text){
+        chatMap.put(user, text);
+    }
+
+    public String loadChat(String user){
+        return chatMap.get(user);
     }
 
     public static void main(String[] args){

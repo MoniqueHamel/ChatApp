@@ -7,11 +7,20 @@ public class Message implements Serializable {
     public final String sender;
     public final String message;
     public final MessageType type;
+    public final String destination;
 
     private Message(String sender, String message, MessageType type){
         this.sender = sender;
         this.message = message;
         this.type = type;
+        destination = null;
+    }
+
+    private Message(String sender, String destination, String message, MessageType type){
+        this.sender = sender;
+        this.message = message;
+        this.type = type;
+        this.destination = destination;
     }
 
     public static Message userLeft(String user) {
@@ -22,8 +31,8 @@ public class Message implements Serializable {
         return new Message(user, "", MessageType.USER_JOINED);
     }
 
-    public static Message createUserMessage(String user, String message){
-        return new Message(user, message, MessageType.USER_MESSAGE);
+    public static Message createUserMessage(String sender, String destination, String message){
+        return new Message(sender, destination, message, MessageType.USER_MESSAGE);
     }
 
     public static Message addActiveUser(String user){

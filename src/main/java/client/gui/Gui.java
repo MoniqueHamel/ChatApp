@@ -3,13 +3,17 @@ package client.gui;
 import client.Client;
 
 import javax.swing.*;
+import javax.swing.event.ListDataEvent;
+import javax.swing.event.ListDataListener;
+import javax.swing.event.ListSelectionEvent;
+import javax.swing.event.ListSelectionListener;
 import java.awt.*;
-import java.util.Collections;
+import java.awt.event.ActionEvent;
 
 public class Gui {
 
     private final Client client;
-    private JFrame mainFrame = new JFrame("ChatApp");
+    private JFrame mainFrame = new JFrame();
     private JFrame loginFrame;
     private JTextArea messageBox;
     private JTextArea inputArea;
@@ -18,6 +22,7 @@ public class Gui {
     private JPanel westPanel;
     private JList<String> listOfActiveUsers;
     ActiveUsersModel userListModel = new ActiveUsersModel();
+    private String selectedUser = "Global";
 
     public static void main(String args[]){
         try {
@@ -46,6 +51,8 @@ public class Gui {
         JTextField usernameInputField = new JTextField();
         JLabel usernameLabel = new JLabel("Enter a username:");
         JButton chooseUsernameButton = new JButton("Choose username");
+        // Map Enter key to chooseUsernameButton
+        loginFrame.getRootPane().setDefaultButton(chooseUsernameButton);
 
         GridBagConstraints left = new GridBagConstraints();
         setGridBagConstraints(left, 0, 0, 0.2, 0.2, true);
@@ -67,13 +74,13 @@ public class Gui {
         chooseUsernameButton.addActionListener(actionEvent -> {
             loginFrame.setVisible(false);
             client.setClientUsername(usernameInputField.getText());
+            mainFrame.setTitle("ChatApp - " + client.getClientUsername());
             displayMainView();
         });
     }
 
     public void displayMainView(){
         mainFrame.setVisible(true);
-
     }
 
     private void setupGui(){
@@ -102,28 +109,47 @@ public class Gui {
     }
 
     private void setupAndAddOnlineClientsPanel(){
+        userListModel.add("Global");
         listOfActiveUsers = new JList<>(userListModel);
-//        listOfActiveUsers.setModel(new AbstractListModel<>() {
-//            @Override
-//            public int getSize() {
-//                return activeUsersList.size();
-//            }
-//
-//            @Override
-//            public String getElementAt(int i) {
-//                return activeUsersList.get(i);
-//            }
-//        });
-//        listOfActiveUsers.addListSelectionListener(new ListSelectionListener() {
-//            @Override
-//            public void valueChanged(ListSelectionEvent event) {
-//            }
-//        });
+        listOfActiveUsers.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        listOfActiveUsers.setSelectedValue("Global", true);
+        userListModel.addListDataListener(new ListDataListener() {
+            @Override
+            public void intervalAdded(ListDataEvent listDataEvent) {
+
+            }
+
+            @Override
+            public void intervalRemoved(ListDataEvent listDataEvent) {
+
+            }
+
+            @Override
+            public void contentsChanged(ListDataEvent listDataEvent) {
+                listOfActiveUsers.setSelectedValue(selectedUser, true);
+            }
+        });
+        listOfActiveUsers.addListSelectionListener(new ListSelectionListener() {
+            @Override
+            public void valueChanged(ListSelectionEvent event) {
+                if (!event.getValueIsAdjusting()) {
+                    switchChat();
+                }
+            }
+        });
 
         GridBagConstraints c = new GridBagConstraints();
         setGridBagConstraints(c, 0, 0, 0, 0, true);
 
         westPanel.add(listOfActiveUsers);
+    }
+
+    private void switchChat(){
+        String text = messageBox.getText();
+        client.saveChat(selectedUser, text);
+        selectedUser = listOfActiveUsers.getSelectedValue();
+        text = client.loadChat(selectedUser);
+        messageBox.setText(text);
     }
 
     public void addUserToActiveUserList(String user){
@@ -149,6 +175,23 @@ public class Gui {
         inputArea = new JTextArea();
         inputArea.setLineWrap(true);
 
+        String SEND_TEXT = "send-text";
+        String INSERT_BREAK = "insert-break";
+
+        InputMap input = inputArea.getInputMap();
+        KeyStroke enter = KeyStroke.getKeyStroke("ENTER");
+        KeyStroke shiftEnter = KeyStroke.getKeyStroke("shift ENTER");
+        input.put(shiftEnter, INSERT_BREAK);
+        input.put(enter, SEND_TEXT);
+
+        ActionMap actions = inputArea.getActionMap();
+        actions.put(SEND_TEXT, new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent actionEvent) {
+                sendMessage();
+            }
+        });
+
         GridBagConstraints left = new GridBagConstraints();
         setGridBagConstraints(left, 0, 0, 1.0, 1.0, true);
 
@@ -164,13 +207,14 @@ public class Gui {
         southPanel.add(sendMessageButton, right);
 
         sendMessageButton.addActionListener(actionEvent -> {
-            String text = inputArea.getText();
-            client.sendMessage(text);
-            //String output = client.getClientUsername() + ": " + text;
-            inputArea.setText("");
-            //messageBox.append("\n" + output);
+            sendMessage();
         });
+    }
 
+    private void sendMessage(){
+        String text = inputArea.getText();
+        client.sendMessage(text, listOfActiveUsers.getSelectedValue());
+        inputArea.setText("");
     }
 
     public void appendTextToMessageBox(String text){

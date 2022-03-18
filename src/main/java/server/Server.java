@@ -39,16 +39,33 @@ public class Server{
             }
         }, 0, 1, TimeUnit.SECONDS);
 
+        handleMessageQueue();
+
+        handleNewClients(port);
+    }
+
+    private void handleMessageQueue(){
         messageService.scheduleAtFixedRate(() -> {
             if (!messageQueue.isEmpty()){
                 Message message = messageQueue.remove();
                 System.out.println(message);
-                clientMap.forEach((username, handler)->{
-                    handler.sendMessage(message);
-                });
+                if(message.destination == null || message.destination.equals("Global")){
+                    clientMap.forEach((username, handler)->{
+                        handler.sendMessage(message);
+                    });
+                } else {
+                    clientMap.get(message.sender)
+                                    .sendMessage(message);
+                    clientMap.get(message.destination)
+                            .sendMessage(message);
+                }
+
             }
         },0,100, TimeUnit.MILLISECONDS);
 
+    }
+
+    private void handleNewClients(int port){
         try {
             serverSocket = new ServerSocket(port);
             while (true) {
@@ -133,3 +150,4 @@ public class Server{
         server.start(4444);
     }
 }
+
