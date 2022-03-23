@@ -1,13 +1,19 @@
 package server;
 
+import client.User;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import common.Message;
+import common.Message.MessageType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.net.*;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Queue;
+import java.nio.file.Paths;
+import java.util.*;
 import java.util.concurrent.*;
+import java.util.stream.Collectors;
 
 public class Server{
     private ServerSocket serverSocket;
@@ -15,7 +21,10 @@ public class Server{
     private ScheduledExecutorService messageService;
     private ScheduledExecutorService clientChecker;
     private Map<String, ClientHandler> clientMap;
+    private Map<String, User> userProfileMap;
     Queue<Message> messageQueue;
+    private static final String USERS_FILE = "usersFile.json";
+    private static final Logger log = LoggerFactory.getLogger(Server.class);
 
     public void start(int port) {
         clientMap = new ConcurrentHashMap<>();
@@ -23,6 +32,8 @@ public class Server{
         messageService = Executors.newSingleThreadScheduledExecutor();
         clientChecker = Executors.newSingleThreadScheduledExecutor();
         messageQueue = new ConcurrentLinkedQueue<>();
+
+        readUserProfiles();
 
         clientChecker.scheduleAtFixedRate(new Runnable() {
             @Override
@@ -34,6 +45,7 @@ public class Server{
                     if(!handler.isClientActive()){
                         iterator.remove();
                         messageQueue.add(Message.userLeft(username));
+                        log.info("User {} has disconnected.", username);
                     }
                 }
             }
@@ -48,7 +60,6 @@ public class Server{
         messageService.scheduleAtFixedRate(() -> {
             if (!messageQueue.isEmpty()){
                 Message message = messageQueue.remove();
-                System.out.println(message);
                 if(message.destination == null || message.destination.equals("Global")){
                     clientMap.forEach((username, handler)->{
                         handler.sendMessage(message);
@@ -71,12 +82,12 @@ public class Server{
             while (true) {
                 ClientHandler newClientHandler = new ClientHandler(serverSocket.accept(), this);
                 clientMap.put(newClientHandler.username, newClientHandler);
-                System.out.println(clientMap.size());
                 clientMap.forEach((username, handler) -> {
                     handler.sendMessage(Message.userJoined(newClientHandler.username));
-                    if(username != newClientHandler.username) {
+                    if(!username.equals(newClientHandler.username)) {
                         newClientHandler.sendMessage(Message.addActiveUser(username));
                     }
+                    log.info("User {} has connected.", newClientHandler.username);
                 });
                 exec.execute(newClientHandler);
             }
@@ -94,6 +105,10 @@ public class Server{
         }
     }
 
+    public boolean checkLoginDetails(String username, String password){
+        return userProfileMap.containsKey(username) && password.equals(userProfileMap.get(username).password);
+    }
+
     private static class ClientHandler implements Runnable {
         private Server server;
         private Socket clientSocket;
@@ -108,8 +123,9 @@ public class Server{
             try {
                 out = new ObjectOutputStream(clientSocket.getOutputStream());
                 in = new ObjectInputStream(clientSocket.getInputStream());
-                username = ((Message) in.readObject()).sender;
-            } catch (IOException | ClassNotFoundException e) {
+//                username = ((Message) in.readObject()).sender;
+                authenticateUser();
+            } catch (IOException e) {
                 e.printStackTrace();
             }
         }
@@ -142,6 +158,48 @@ public class Server{
             } catch (IOException e) {
                 e.printStackTrace();
             }
+        }
+
+        private void authenticateUser(){
+            try {
+                Message msg = (Message) in.readObject();
+                if (msg.type == MessageType.LOGIN_MESSAGE){
+                    if (server.checkLoginDetails(msg.sender, msg.message)){
+                        sendMessage(Message.loginSuccessful(msg.sender));
+                        username = msg.sender;
+                        log.info("User {} has logged in successfully.", msg.sender);
+                    } else {
+                        sendMessage(Message.loginFailed(msg.sender));
+                        log.info("User {} unable to log in.", msg.sender);
+                    }
+                }
+            } catch (IOException | ClassNotFoundException e) {
+                e.printStackTrace();
+            }
+
+        }
+    }
+
+    private void saveUsers(List<User> listOfUsers){
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            mapper.writeValue(new File(USERS_FILE), listOfUsers);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void readUserProfiles(){
+        ObjectMapper mapper = new ObjectMapper();
+        try {
+            TypeReference<List<User>> typeRef = new TypeReference<List<User>>() {};
+            List<User> list = mapper.readValue(Paths.get(USERS_FILE).toFile(), typeRef);
+            userProfileMap = list.stream().collect(Collectors.toMap(User::getUsername, User->User));
+            userProfileMap.forEach((username, user)->{
+                System.out.println(username);
+            });
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
