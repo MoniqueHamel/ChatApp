@@ -2,7 +2,6 @@ package server;
 
 import client.User;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import common.Message;
 import common.Message.MessageType;
@@ -15,7 +14,6 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.stream.Collectors;
 
 public class Server{
     private ServerSocket serverSocket;
@@ -71,13 +69,6 @@ public class Server{
                             }
                         }
                     });
-                    //                clientMap.forEach((username, handler) -> {
-//                    handler.sendMessage(Message.userJoined(newClientHandler.username));
-//                    if(!username.equals(newClientHandler.username)) {
-//                        newClientHandler.sendMessage(Message.addActiveUser(username));
-//                    }
-//                    log.info("User {} has connected.", newClientHandler.username);
-//                });
                 } else {
                     clientMap.get(message.sender)
                                     .sendMessage(message);
@@ -119,96 +110,6 @@ public class Server{
         return !userProfileMap.containsKey(username);
     }
 
-    private static class ClientHandler implements Runnable {
-        private Server server;
-        private Socket clientSocket;
-        private ObjectOutputStream out;
-        private ObjectInputStream in;
-        private boolean isActive = true;
-        String username;
-
-        public ClientHandler(Socket socket, Server server){
-            this.server = server;
-            this.clientSocket = socket;
-            try {
-                out = new ObjectOutputStream(clientSocket.getOutputStream());
-                in = new ObjectInputStream(clientSocket.getInputStream());
-//                username = ((Message) in.readObject()).sender;
-//                authenticateUser();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-
-        public void run(){
-            try {
-                try {
-                    while(true){
-                        Message msg = (Message) in.readObject();
-                        if (msg.type == MessageType.LOGIN_MESSAGE){
-                            authenticateUser(msg);
-                        } else if (msg.type == MessageType.REGISTER_MESSAGE){
-                            registerUser(msg);
-                        } else {
-                            server.messageQueue.add(msg);
-                        }
-                    }
-                } catch(EOFException ignored){}
-
-                isActive = false;
-                in.close();
-                out.close();
-                clientSocket.close();
-
-            } catch (IOException | ClassNotFoundException e) {
-                e.printStackTrace();
-            }
-        }
-
-        public boolean isClientActive(){
-            return isActive;
-        }
-
-        public void sendMessage(Message message){
-            try {
-                out.writeObject(message);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-
-        private void authenticateUser(Message msg){
-            if (server.checkLoginDetails(msg.sender, msg.message)){
-                sendMessage(Message.loginSuccessful(msg.sender));
-                username = msg.sender;
-                log.info("User {} has logged in successfully.", msg.sender);
-                server.clientMap.put(username, this);
-                server.messageQueue.add(Message.userJoined(username));
-            } else {
-                sendMessage(Message.loginFailed(msg.sender));
-                log.info("User {} unable to log in.", msg.sender);
-            }
-
-        }
-
-        private void registerUser(Message msg){
-            if (server.checkRegistrationDetails(msg.sender)){
-                sendMessage(Message.registerSuccessful(msg.sender));
-                username = msg.sender;
-                String password = msg.message;
-                log.info("User {} has registered successfully.", msg.sender);
-                User user = new User(username, password);
-                server.userProfileMap.put(username, user);
-                server.clientMap.put(username, this);
-                server.messageQueue.add(Message.userJoined(username));
-                server.saveUsers();
-            } else {
-                sendMessage(Message.registerFailed(msg.sender));
-                log.info("User {} unable to register.", msg.sender);
-            }
-        }
-    }
-
     private void saveUsers(){
         try {
             ObjectMapper mapper = new ObjectMapper();
@@ -221,7 +122,6 @@ public class Server{
                 }
             });
             Files.write(Paths.get(USERS_FILE), userJsons);
-//            mapper.writeValue(new File(USERS_FILE), userProfileMap);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -241,15 +141,18 @@ public class Server{
                     e.printStackTrace();
                 }
             });
-//            TypeReference<List<User>> typeRef = new TypeReference<List<User>>() {};
-//            List<User> list = mapper.readValue(Paths.get(USERS_FILE).toFile(), typeRef);
-//            userProfileMap = list.stream().collect(Collectors.toMap(User::getUsername, User->User));
-//            userProfileMap.forEach((username, user)->{
-//                System.out.println(username);
-//            });
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    public void registerClientHandler(ClientHandler ch){
+        clientMap.put(ch.username, ch);
+    }
+
+    public void registerNewUser(User user){
+        userProfileMap.put(user.username, user);
+        saveUsers();
     }
 
     public static void main(String[] args){
