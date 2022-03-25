@@ -267,6 +267,10 @@ public class Gui {
         loginFailedLabel.setVisible(true);
     }
 
+    public String getSelectedUser() {
+        return selectedUser;
+    }
+
     private void setGridBagConstraints(GridBagConstraints c, int x, int y, double xWeight, double yWeight, boolean fill){
         c.gridx = x;
         c.gridy = y;

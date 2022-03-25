@@ -67,11 +67,19 @@ public class Client {
                     log.info("{} message from {} to {}", message.type.name(), message.sender, message.destination);
                     switch (message.type){
                         case USER_MESSAGE:
-                            String sender = message.sender;
-                            if (sender.equals(username)){
-                                sender = "You";
+                            String sender = message.sender.equals(username) ? "You" : message.sender;
+                            appendMessageToChat(sender, message.destination, message.message);
+                            if (gui.getSelectedUser().equals("Global")){
+                                if (message.destination.equals("Global")){
+                                    gui.appendTextToMessageBox(sender + ": " + message.message);
+                                }
+                            } else if (gui.getSelectedUser().equals(sender)){
+                                if(message.destination.equals(username)){
+                                    gui.appendTextToMessageBox(sender + ": " + message.message);
+                                }
+                            } else if (message.sender.equals(username)){
+                                gui.appendTextToMessageBox(sender + ": " + message.message);
                             }
-                            gui.appendTextToMessageBox(sender + ": " + message.message);
                             break;
                         case USER_LEFT:
                             gui.appendTextToMessageBox(message.sender + " has left the chat!");
@@ -129,6 +137,17 @@ public class Client {
 
     public void saveChat(String user, String text){
         chatMap.put(user, text);
+    }
+
+    public void appendMessageToChat(String username, String destination, String text){
+        String sender = username.equals(this.username) ? "You" : username;
+        if (destination.equals("Global")){
+            String chat = String.format("%s\n%s: %s", chatMap.get("Global"), sender, text);
+            chatMap.put("Global", chat);
+        } else {
+            String chat = String.format("%s\n%s: %s", chatMap.get(username), sender, text);
+            chatMap.put(username, chat);
+        }
     }
 
     public String loadChat(String user){
