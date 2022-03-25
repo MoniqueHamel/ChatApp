@@ -1,6 +1,7 @@
 package server;
 
 import client.User;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import common.Message;
@@ -10,6 +11,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.net.*;
+import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.*;
@@ -23,7 +25,7 @@ public class Server{
     private Map<String, ClientHandler> clientMap;
     private Map<String, User> userProfileMap;
     Queue<Message> messageQueue;
-    private static final String USERS_FILE = "usersFile.json";
+    private static final String USERS_FILE = "usersFile.txt";
     private static final Logger log = LoggerFactory.getLogger(Server.class);
 
     public void start(int port) {
@@ -63,7 +65,19 @@ public class Server{
                 if(message.destination == null || message.destination.equals("Global")){
                     clientMap.forEach((username, handler)->{
                         handler.sendMessage(message);
+                        if (message.type == MessageType.USER_JOINED) {
+                            if(!username.equals(message.sender)) {
+                                clientMap.get(message.sender).sendMessage(Message.addActiveUser(username));
+                            }
+                        }
                     });
+                    //                clientMap.forEach((username, handler) -> {
+//                    handler.sendMessage(Message.userJoined(newClientHandler.username));
+//                    if(!username.equals(newClientHandler.username)) {
+//                        newClientHandler.sendMessage(Message.addActiveUser(username));
+//                    }
+//                    log.info("User {} has connected.", newClientHandler.username);
+//                });
                 } else {
                     clientMap.get(message.sender)
                                     .sendMessage(message);
@@ -81,14 +95,6 @@ public class Server{
             serverSocket = new ServerSocket(port);
             while (true) {
                 ClientHandler newClientHandler = new ClientHandler(serverSocket.accept(), this);
-                clientMap.put(newClientHandler.username, newClientHandler);
-                clientMap.forEach((username, handler) -> {
-                    handler.sendMessage(Message.userJoined(newClientHandler.username));
-                    if(!username.equals(newClientHandler.username)) {
-                        newClientHandler.sendMessage(Message.addActiveUser(username));
-                    }
-                    log.info("User {} has connected.", newClientHandler.username);
-                });
                 exec.execute(newClientHandler);
             }
         } catch (IOException e) {
@@ -109,6 +115,10 @@ public class Server{
         return userProfileMap.containsKey(username) && password.equals(userProfileMap.get(username).password);
     }
 
+    public boolean checkRegistrationDetails(String username){
+        return !userProfileMap.containsKey(username);
+    }
+
     private static class ClientHandler implements Runnable {
         private Server server;
         private Socket clientSocket;
@@ -124,7 +134,7 @@ public class Server{
                 out = new ObjectOutputStream(clientSocket.getOutputStream());
                 in = new ObjectInputStream(clientSocket.getInputStream());
 //                username = ((Message) in.readObject()).sender;
-                authenticateUser();
+//                authenticateUser();
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -134,7 +144,14 @@ public class Server{
             try {
                 try {
                     while(true){
-                        server.messageQueue.add((Message) in.readObject());
+                        Message msg = (Message) in.readObject();
+                        if (msg.type == MessageType.LOGIN_MESSAGE){
+                            authenticateUser(msg);
+                        } else if (msg.type == MessageType.REGISTER_MESSAGE){
+                            registerUser(msg);
+                        } else {
+                            server.messageQueue.add(msg);
+                        }
                     }
                 } catch(EOFException ignored){}
 
@@ -160,44 +177,76 @@ public class Server{
             }
         }
 
-        private void authenticateUser(){
-            try {
-                Message msg = (Message) in.readObject();
-                if (msg.type == MessageType.LOGIN_MESSAGE){
-                    if (server.checkLoginDetails(msg.sender, msg.message)){
-                        sendMessage(Message.loginSuccessful(msg.sender));
-                        username = msg.sender;
-                        log.info("User {} has logged in successfully.", msg.sender);
-                    } else {
-                        sendMessage(Message.loginFailed(msg.sender));
-                        log.info("User {} unable to log in.", msg.sender);
-                    }
-                }
-            } catch (IOException | ClassNotFoundException e) {
-                e.printStackTrace();
+        private void authenticateUser(Message msg){
+            if (server.checkLoginDetails(msg.sender, msg.message)){
+                sendMessage(Message.loginSuccessful(msg.sender));
+                username = msg.sender;
+                log.info("User {} has logged in successfully.", msg.sender);
+                server.clientMap.put(username, this);
+                server.messageQueue.add(Message.userJoined(username));
+            } else {
+                sendMessage(Message.loginFailed(msg.sender));
+                log.info("User {} unable to log in.", msg.sender);
             }
 
         }
+
+        private void registerUser(Message msg){
+            if (server.checkRegistrationDetails(msg.sender)){
+                sendMessage(Message.registerSuccessful(msg.sender));
+                username = msg.sender;
+                String password = msg.message;
+                log.info("User {} has registered successfully.", msg.sender);
+                User user = new User(username, password);
+                server.userProfileMap.put(username, user);
+                server.clientMap.put(username, this);
+                server.messageQueue.add(Message.userJoined(username));
+                server.saveUsers();
+            } else {
+                sendMessage(Message.registerFailed(msg.sender));
+                log.info("User {} unable to register.", msg.sender);
+            }
+        }
     }
 
-    private void saveUsers(List<User> listOfUsers){
+    private void saveUsers(){
         try {
             ObjectMapper mapper = new ObjectMapper();
-            mapper.writeValue(new File(USERS_FILE), listOfUsers);
+            List<String> userJsons = new ArrayList<>();
+            userProfileMap.forEach((username, user) -> {
+                try {
+                    userJsons.add(mapper.writeValueAsString(user));
+                } catch (JsonProcessingException e) {
+                    e.printStackTrace();
+                }
+            });
+            Files.write(Paths.get(USERS_FILE), userJsons);
+//            mapper.writeValue(new File(USERS_FILE), userProfileMap);
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
     private void readUserProfiles(){
+        userProfileMap = new HashMap<>();
+        if (!Files.exists(Paths.get(USERS_FILE))) return;
         ObjectMapper mapper = new ObjectMapper();
         try {
-            TypeReference<List<User>> typeRef = new TypeReference<List<User>>() {};
-            List<User> list = mapper.readValue(Paths.get(USERS_FILE).toFile(), typeRef);
-            userProfileMap = list.stream().collect(Collectors.toMap(User::getUsername, User->User));
-            userProfileMap.forEach((username, user)->{
-                System.out.println(username);
+            List<String> userJsons = Files.readAllLines(Paths.get(USERS_FILE));
+            userJsons.forEach((json) -> {
+                try {
+                    User user = mapper.readValue(json, User.class);
+                    userProfileMap.put(user.username, user);
+                } catch (JsonProcessingException e) {
+                    e.printStackTrace();
+                }
             });
+//            TypeReference<List<User>> typeRef = new TypeReference<List<User>>() {};
+//            List<User> list = mapper.readValue(Paths.get(USERS_FILE).toFile(), typeRef);
+//            userProfileMap = list.stream().collect(Collectors.toMap(User::getUsername, User->User));
+//            userProfileMap.forEach((username, user)->{
+//                System.out.println(username);
+//            });
         } catch (IOException e) {
             e.printStackTrace();
         }

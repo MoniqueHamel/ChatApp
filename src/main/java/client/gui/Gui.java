@@ -9,6 +9,7 @@ import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 import java.awt.*;
 import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 
 public class Gui {
 
@@ -23,6 +24,8 @@ public class Gui {
     private JList<String> listOfActiveUsers;
     ActiveUsersModel userListModel = new ActiveUsersModel();
     private String selectedUser = "Global";
+    private JLabel loginFailedLabel = new JLabel();
+    JTextField usernameInputField;
 
     public static void main(String args[]){
         try {
@@ -48,40 +51,74 @@ public class Gui {
         loginFrame = new JFrame("Choose your username!");
         loginFrame.setLayout(new GridBagLayout());
         JPanel loginPanel = new JPanel(new GridBagLayout());
-        JTextField usernameInputField = new JTextField();
+        usernameInputField = new JTextField();
+        JPasswordField passwordInputField = new JPasswordField();
         JLabel usernameLabel = new JLabel("Enter a username:");
-        JButton chooseUsernameButton = new JButton("Choose username");
+        JLabel passwordLabel = new JLabel("Enter a password: ");
+        JButton registerButton = new JButton("Register");
+        JButton loginButton = new JButton("Login");
         // Map Enter key to chooseUsernameButton
-        loginFrame.getRootPane().setDefaultButton(chooseUsernameButton);
+        loginFrame.getRootPane().setDefaultButton(registerButton);
 
+        loginButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent actionEvent) {
+                loginFailedLabel.setVisible(false);
+                String username = usernameInputField.getText();
+                String password = String.valueOf(passwordInputField.getPassword());
+                client.sendLoginDetails(username, password);
+            }
+        });
+
+        registerButton.addActionListener((new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent actionEvent) {
+                loginFailedLabel.setVisible(false);
+                String username = usernameInputField.getText();
+                String password = String.valueOf(passwordInputField.getPassword());
+                client.sendRegistrationDetails(username, password);
+            }
+        }));
+
+        GridBagConstraints labelConstraints = new GridBagConstraints();
+        setGridBagConstraints(labelConstraints, 0, 0, 1, 1, true);
+        labelConstraints.gridwidth = 2;
         GridBagConstraints left = new GridBagConstraints();
-        setGridBagConstraints(left, 0, 0, 0.2, 0.2, true);
+        setGridBagConstraints(left, 0, 1, 0.2, 0.2, true);
         GridBagConstraints right = new GridBagConstraints();
-        setGridBagConstraints(right, 1, 0, 0.8, 0.8, false);
+        setGridBagConstraints(right, 1, 1, 0.8, 0.8, false);
         right.fill = GridBagConstraints.HORIZONTAL;
+        GridBagConstraints west = new GridBagConstraints();
+        setGridBagConstraints(west, 0, 2, 0.2, 0.2, true);
+        GridBagConstraints east = new GridBagConstraints();
+        setGridBagConstraints(east, 1, 2, 0.8, 0.8, false);
+        east.fill = GridBagConstraints.HORIZONTAL;
+        GridBagConstraints leftSouth = new GridBagConstraints();
+        setGridBagConstraints(leftSouth, 0, 3, 0, 0, false);
         GridBagConstraints south = new GridBagConstraints();
-        setGridBagConstraints(south, 1, 1, 0, 0, false);
+        setGridBagConstraints(south, 1, 3, 0, 0, false);
         GridBagConstraints c = new GridBagConstraints();
         setGridBagConstraints(c, 0, 0, 1, 1, false);
 
+        loginPanel.add(loginFailedLabel, labelConstraints);
+        loginFailedLabel.setVisible(false);
         loginPanel.add(usernameLabel, left);
         loginPanel.add(usernameInputField, right);
-        loginPanel.add(chooseUsernameButton, south);
+        loginPanel.add(passwordLabel, west);
+        loginPanel.add(passwordInputField, east);
+        loginPanel.add(registerButton, south);
+        loginPanel.add(loginButton, leftSouth);
         loginFrame.add(loginPanel, c);
         loginFrame.setVisible(true);
         loginFrame.setSize(600, 300);
-
-        chooseUsernameButton.addActionListener(actionEvent -> {
-            loginFrame.setVisible(false);
-            client.setClientUsername(usernameInputField.getText());
-            mainFrame.setTitle("ChatApp - " + client.getClientUsername());
-            displayMainView();
-            inputArea.requestFocusInWindow();
-        });
     }
 
     public void displayMainView(){
+        loginFrame.setVisible(false);
+//        client.setClientUsername(usernameInputField.getText());
+        mainFrame.setTitle("ChatApp - " + client.getClientUsername());
         mainFrame.setVisible(true);
+        inputArea.requestFocusInWindow();
     }
 
     private void setupGui(){
@@ -215,13 +252,19 @@ public class Gui {
 
     private void sendMessage(){
         String text = inputArea.getText();
-        client.sendMessage(text, listOfActiveUsers.getSelectedValue());
+        client.sendUserMessage(text, listOfActiveUsers.getSelectedValue());
         inputArea.setText("");
         inputArea.requestFocusInWindow();
     }
 
     public void appendTextToMessageBox(String text){
         messageBox.append("\n" + text);
+    }
+
+    public void showLoginFailedMessage(String message){
+        loginFailedLabel.setText(message);
+        loginFailedLabel.setForeground(Color.RED);
+        loginFailedLabel.setVisible(true);
     }
 
     private void setGridBagConstraints(GridBagConstraints c, int x, int y, double xWeight, double yWeight, boolean fill){

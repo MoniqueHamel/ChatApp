@@ -39,10 +39,40 @@ public class Message implements Serializable {
         return new Message(user, "", MessageType.ADD_ACTIVE_USER);
     }
 
+    public static Message attemptLogin(String sender, String password){
+        return new Message(sender, password, MessageType.LOGIN_MESSAGE);
+    }
+
+    public static Message loginSuccessful(String destination){
+        return new Message("", destination, "", MessageType.LOGIN_SUCCESSFUL);
+    }
+
+    public static Message loginFailed(String destination){
+        return new Message("", destination, "Wrong username and/or password", MessageType.LOGIN_FAILED);
+    }
+
+    public static Message attemptRegistration(String sender, String password){
+        return new Message(sender, password, MessageType.REGISTER_MESSAGE);
+    }
+
+    public static Message registerSuccessful(String destination){
+        return new Message("", destination, "", MessageType.REGISTER_SUCCESSFUL);
+    }
+
+    public static Message registerFailed(String destination){
+        return new Message("", destination, "Username already in use.", MessageType.REGISTER_FAILED);
+    }
+
     public enum MessageType{
         USER_JOINED,
         USER_LEFT,
         USER_MESSAGE,
-        ADD_ACTIVE_USER
+        ADD_ACTIVE_USER,
+        LOGIN_MESSAGE,
+        REGISTER_MESSAGE,
+        LOGIN_FAILED,
+        LOGIN_SUCCESSFUL,
+        REGISTER_FAILED,
+        REGISTER_SUCCESSFUL
     }
 }

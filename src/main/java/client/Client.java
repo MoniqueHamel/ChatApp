@@ -2,6 +2,8 @@ package client;
 
 import client.gui.Gui;
 import common.Message;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.net.*;
@@ -19,6 +21,8 @@ public class Client {
     private Map<String, String> chatMap;
     Gui gui;
 
+    private static final Logger log = LoggerFactory.getLogger(Client.class);
+
     public void startConnection(String ip, int port){
         try {
             clientSocket = new Socket(ip, port);
@@ -35,13 +39,24 @@ public class Client {
         exec.execute(this::readMessage);
     }
 
-    public void sendMessage(String msg, String destination){
+    private void sendMessage(Message msg){
         try {
-            Message message = Message.createUserMessage(username, destination, msg);
-            out.writeObject(message);
+            out.writeObject(msg);
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    public void sendUserMessage(String msg, String destination){
+        sendMessage(Message.createUserMessage(username, destination, msg));
+    }
+
+    public void sendLoginDetails(String username, String password){
+        sendMessage(Message.attemptLogin(username, password));
+    }
+
+    public void sendRegistrationDetails(String username, String password){
+        sendMessage(Message.attemptRegistration(username, password));
     }
 
     public void readMessage(){
@@ -49,6 +64,7 @@ public class Client {
             Message message;
             try {
                 while((message = (Message) in.readObject()) != null) {
+                    log.info("{} message from {} to {}", message.type.name(), message.sender, message.destination);
                     switch (message.type){
                         case USER_MESSAGE:
                             String sender = message.sender;
@@ -71,6 +87,15 @@ public class Client {
                             break;
                         case ADD_ACTIVE_USER:
                             gui.addUserToActiveUserList(message.sender);
+                            break;
+                        case LOGIN_SUCCESSFUL:
+                        case REGISTER_SUCCESSFUL:
+                            setClientUsername(message.destination);
+                            gui.displayMainView();
+                            break;
+                        case LOGIN_FAILED:
+                        case REGISTER_FAILED:
+                            gui.showLoginFailedMessage(message.message);
                             break;
                     }
                 }
@@ -95,7 +120,7 @@ public class Client {
 
     public void setClientUsername(String username){
         this.username = username;
-        sendMessage(username, null);
+//        sendMessage(username, null);
     }
 
     public String getClientUsername(){
