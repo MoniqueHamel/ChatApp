@@ -106,6 +106,10 @@ public class Server{
         return userProfileMap.containsKey(username) && password.equals(userProfileMap.get(username).password);
     }
 
+    public boolean isUserOnline(String username){
+        return clientMap.containsKey(username);
+    }
+
     public boolean checkRegistrationDetails(String username){
         return !userProfileMap.containsKey(username);
     }

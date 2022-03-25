@@ -47,8 +47,8 @@ public class Message implements Serializable {
         return new Message("", destination, "", MessageType.LOGIN_SUCCESSFUL);
     }
 
-    public static Message loginFailed(String destination){
-        return new Message("", destination, "Wrong username and/or password", MessageType.LOGIN_FAILED);
+    public static Message loginFailed(String destination, String message){
+        return new Message("", destination, message, MessageType.LOGIN_FAILED);
     }
 
     public static Message attemptRegistration(String sender, String password){

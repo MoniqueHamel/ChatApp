@@ -71,14 +71,19 @@ class ClientHandler implements Runnable {
 
     private void authenticateUser(Message msg) {
         if (server.checkLoginDetails(msg.sender, msg.message)) {
-            sendMessage(Message.loginSuccessful(msg.sender));
-            username = msg.sender;
-            log.info("User {} has logged in successfully.", msg.sender);
-            server.registerClientHandler(this);
-            server.messageQueue.add(Message.userJoined(username));
+            if(!server.isUserOnline(msg.sender)){
+                sendMessage(Message.loginSuccessful(msg.sender));
+                username = msg.sender;
+                log.info("User {} has logged in successfully.", msg.sender);
+                server.registerClientHandler(this);
+                server.messageQueue.add(Message.userJoined(username));
+            } else {
+                sendMessage(Message.loginFailed(msg.sender, "User already logged in."));
+                log.info("User {} unable to log in. Reason: Already signed in.", msg.sender);
+            }
         } else {
-            sendMessage(Message.loginFailed(msg.sender));
-            log.info("User {} unable to log in.", msg.sender);
+            sendMessage(Message.loginFailed(msg.sender, "Wrong username and/or password."));
+            log.info("User {} unable to log in. Reason: Invalid credentials.", msg.sender);
         }
 
     }
