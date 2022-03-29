@@ -1,14 +1,19 @@
 package client;
 
 import client.gui.Gui;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import common.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.swing.*;
 import java.io.*;
 import java.net.*;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -69,8 +74,8 @@ public class Client {
                         case USER_MESSAGE:
                             String sender = message.sender.equals(username) ? "You" : message.sender;
                             appendMessageToChat(sender, message.destination, message.message);
-                            if (gui.getSelectedUser().equals("Global")){
-                                if (message.destination.equals("Global")){
+                            if (gui.getSelectedUser().equals(Message.GLOBAL)){
+                                if (message.destination.equals(Message.GLOBAL)){
                                     gui.appendTextToMessageBox(sender + ": " + message.message);
                                 }
                             } else if (gui.getSelectedUser().equals(sender)){
@@ -90,11 +95,11 @@ public class Client {
                         case USER_JOINED:
                             gui.appendTextToMessageBox(message.sender + " has joined the chat!");
                             if(!message.sender.equals(username)) {
-                                gui.addUserToActiveUserList(message.sender);
+                                gui.addUserToActiveUserList(message.sender, true);
                             }
                             break;
                         case ADD_ACTIVE_USER:
-                            gui.addUserToActiveUserList(message.sender);
+                            gui.addUserToActiveUserList(message.sender, true);
                             break;
                         case LOGIN_SUCCESSFUL:
                         case REGISTER_SUCCESSFUL:
@@ -104,6 +109,15 @@ public class Client {
                         case LOGIN_FAILED:
                         case REGISTER_FAILED:
                             gui.showLoginFailedMessage(message.message);
+                            break;
+                        case REGISTERED_USERS_LIST:
+                            ObjectMapper mapper = new ObjectMapper();
+                            TypeReference<Set<String>> setTypeReference = new TypeReference<>() {};
+                            Set<String> registeredUsers = mapper.readValue(message.message, setTypeReference);
+                            log.info("isEventDispatchThread = {}", SwingUtilities.isEventDispatchThread());
+                            registeredUsers.forEach((user) -> {
+                                gui.addUserToActiveUserList(user, false);
+                            });
                             break;
                     }
                 }
@@ -141,9 +155,9 @@ public class Client {
 
     public void appendMessageToChat(String username, String destination, String text){
         String sender = username.equals(this.username) ? "You" : username;
-        if (destination.equals("Global")){
-            String chat = String.format("%s\n%s: %s", chatMap.get("Global"), sender, text);
-            chatMap.put("Global", chat);
+        if (destination.equals(Message.GLOBAL)){
+            String chat = String.format("%s\n%s: %s", chatMap.get(Message.GLOBAL), sender, text);
+            chatMap.put(Message.GLOBAL, chat);
         } else {
             String chat = String.format("%s\n%s: %s", chatMap.get(username), sender, text);
             chatMap.put(username, chat);

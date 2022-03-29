@@ -1,6 +1,5 @@
 package server;
 
-import client.User;
 import common.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,8 +16,9 @@ class ClientHandler implements Runnable {
     private ObjectOutputStream out;
     private ObjectInputStream in;
     private boolean isActive = true;
-    private static final Logger log = LoggerFactory.getLogger(ClientHandler.class);
     String username;
+
+    private static final Logger log = LoggerFactory.getLogger(ClientHandler.class);
 
     public ClientHandler(Socket socket, Server server) {
         this.server = server;
@@ -76,6 +76,7 @@ class ClientHandler implements Runnable {
                 username = msg.sender;
                 log.info("User {} has logged in successfully.", msg.sender);
                 server.registerClientHandler(this);
+                sendMessage(Message.registeredUsersList(username, server.getRegisteredUsers()));
                 server.messageQueue.add(Message.userJoined(username));
             } else {
                 sendMessage(Message.loginFailed(msg.sender, "User already logged in."));
@@ -94,13 +95,18 @@ class ClientHandler implements Runnable {
             username = msg.sender;
             String password = msg.message;
             log.info("User {} has registered successfully.", msg.sender);
-            User user = new User(username, password);
-            server.registerNewUser(user);
+            UserCredentials userCredentials = new UserCredentials(username, password);
+            server.registerNewUser(userCredentials);
             server.registerClientHandler(this);
+            sendMessage(Message.registeredUsersList(username, server.getRegisteredUsers()));
             server.messageQueue.add(Message.userJoined(username));
         } else {
             sendMessage(Message.registerFailed(msg.sender));
             log.info("User {} unable to register.", msg.sender);
         }
     }
+
+
+
+
 }

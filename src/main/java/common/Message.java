@@ -8,6 +8,7 @@ public class Message implements Serializable {
     public final String message;
     public final MessageType type;
     public final String destination;
+    public static final String GLOBAL = "#Global";
 
     private Message(String sender, String message, MessageType type){
         this.sender = sender;
@@ -63,6 +64,10 @@ public class Message implements Serializable {
         return new Message("", destination, "Username already in use.", MessageType.REGISTER_FAILED);
     }
 
+    public static Message registeredUsersList(String destination, String list){
+        return new Message("", destination, list, MessageType.REGISTERED_USERS_LIST);
+    }
+
     public enum MessageType{
         USER_JOINED,
         USER_LEFT,
@@ -73,6 +78,7 @@ public class Message implements Serializable {
         LOGIN_FAILED,
         LOGIN_SUCCESSFUL,
         REGISTER_FAILED,
-        REGISTER_SUCCESSFUL
+        REGISTER_SUCCESSFUL,
+        REGISTERED_USERS_LIST
     }
 }

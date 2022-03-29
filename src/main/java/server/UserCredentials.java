@@ -1,15 +1,15 @@
-package client;
+package server;
 
-public class User {
+public class UserCredentials {
     public final String username;
     public final String password;
 
-    public User(){
+    public UserCredentials(){
         username = null;
         password = null;
     }
 
-    public User(String username, String password){
+    public UserCredentials(String username, String password){
         this.username = username;
         this.password = password;
     }

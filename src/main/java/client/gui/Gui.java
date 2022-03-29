@@ -1,6 +1,8 @@
 package client.gui;
 
 import client.Client;
+import client.UserInfo;
+import common.Message;
 
 import javax.swing.*;
 import javax.swing.event.ListDataEvent;
@@ -21,11 +23,12 @@ public class Gui {
     private JPanel northPanel;
     private JPanel southPanel;
     private JPanel westPanel;
-    private JList<String> listOfActiveUsers;
+    private JList<UserInfo> listOfActiveUsers;
     ActiveUsersModel userListModel = new ActiveUsersModel();
-    private String selectedUser = "Global";
+    private String selectedUser = Message.GLOBAL;
     private JLabel loginFailedLabel = new JLabel();
     JTextField usernameInputField;
+
 
     public static void main(String args[]){
         try {
@@ -147,10 +150,11 @@ public class Gui {
     }
 
     private void setupAndAddOnlineClientsPanel(){
-        userListModel.add("Global");
+        userListModel.add(Message.GLOBAL, true);
         listOfActiveUsers = new JList<>(userListModel);
+        listOfActiveUsers.setCellRenderer(new ActiveUserListRenderer());
         listOfActiveUsers.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        listOfActiveUsers.setSelectedValue("Global", true);
+        listOfActiveUsers.setSelectedValue(Message.GLOBAL, true);
         userListModel.addListDataListener(new ListDataListener() {
             @Override
             public void intervalAdded(ListDataEvent listDataEvent) {
@@ -164,7 +168,7 @@ public class Gui {
 
             @Override
             public void contentsChanged(ListDataEvent listDataEvent) {
-                listOfActiveUsers.setSelectedValue(selectedUser, true);
+                listOfActiveUsers.setSelectedValue(new UserInfo(selectedUser, true), true);
             }
         });
         listOfActiveUsers.addListSelectionListener(new ListSelectionListener() {
@@ -178,7 +182,7 @@ public class Gui {
         });
 
         GridBagConstraints c = new GridBagConstraints();
-        setGridBagConstraints(c, 0, 0, 0, 0, true);
+        setGridBagConstraints(c, 0, 0, 1, 1, true);
 
         westPanel.add(listOfActiveUsers);
     }
@@ -186,17 +190,20 @@ public class Gui {
     private void switchChat(){
         String text = messageBox.getText();
         client.saveChat(selectedUser, text);
-        selectedUser = listOfActiveUsers.getSelectedValue();
+        selectedUser = listOfActiveUsers.getSelectedValue().username;
         text = client.loadChat(selectedUser);
         messageBox.setText(text);
     }
 
-    public void addUserToActiveUserList(String user){
-        userListModel.add(user);
+    public void addUserToActiveUserList(String user, boolean isOnline){
+        if (!user.equals(client.getClientUsername())){
+            SwingUtilities.invokeLater(() -> userListModel.add(user, isOnline));
+        }
     }
 
     public void removeUserFromActiveUserList(String user){
-        userListModel.remove(user);
+//        userListModel.add(user, false);
+        SwingUtilities.invokeLater(() -> userListModel.setAsInactive(new UserInfo(user, true)));
     }
 
     private void setupAndAddMessageBox(){
@@ -252,7 +259,7 @@ public class Gui {
 
     private void sendMessage(){
         String text = inputArea.getText();
-        client.sendUserMessage(text, listOfActiveUsers.getSelectedValue());
+        client.sendUserMessage(text, listOfActiveUsers.getSelectedValue().username);
         inputArea.setText("");
         inputArea.requestFocusInWindow();
     }

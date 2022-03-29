@@ -1,6 +1,5 @@
 package server;
 
-import client.User;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import common.Message;
@@ -21,10 +20,11 @@ public class Server{
     private ScheduledExecutorService messageService;
     private ScheduledExecutorService clientChecker;
     private Map<String, ClientHandler> clientMap;
-    private Map<String, User> userProfileMap;
+    private Map<String, UserCredentials> userProfileMap;
     Queue<Message> messageQueue;
     private static final String USERS_FILE = "usersFile.txt";
     private static final Logger log = LoggerFactory.getLogger(Server.class);
+    private static final ObjectMapper mapper = new ObjectMapper();
 
     public void start(int port) {
         clientMap = new ConcurrentHashMap<>();
@@ -60,7 +60,7 @@ public class Server{
         messageService.scheduleAtFixedRate(() -> {
             if (!messageQueue.isEmpty()){
                 Message message = messageQueue.remove();
-                if(message.destination == null || message.destination.equals("Global")){
+                if(message.destination == null || message.destination.equals(Message.GLOBAL)){
                     clientMap.forEach((username, handler)->{
                         handler.sendMessage(message);
                         if (message.type == MessageType.USER_JOINED) {
@@ -116,11 +116,10 @@ public class Server{
 
     private void saveUsers(){
         try {
-            ObjectMapper mapper = new ObjectMapper();
             List<String> userJsons = new ArrayList<>();
-            userProfileMap.forEach((username, user) -> {
+            userProfileMap.forEach((username, userCredentials) -> {
                 try {
-                    userJsons.add(mapper.writeValueAsString(user));
+                    userJsons.add(mapper.writeValueAsString(userCredentials));
                 } catch (JsonProcessingException e) {
                     e.printStackTrace();
                 }
@@ -134,13 +133,12 @@ public class Server{
     private void readUserProfiles(){
         userProfileMap = new HashMap<>();
         if (!Files.exists(Paths.get(USERS_FILE))) return;
-        ObjectMapper mapper = new ObjectMapper();
         try {
             List<String> userJsons = Files.readAllLines(Paths.get(USERS_FILE));
             userJsons.forEach((json) -> {
                 try {
-                    User user = mapper.readValue(json, User.class);
-                    userProfileMap.put(user.username, user);
+                    UserCredentials userCredentials = mapper.readValue(json, UserCredentials.class);
+                    userProfileMap.put(userCredentials.username, userCredentials);
                 } catch (JsonProcessingException e) {
                     e.printStackTrace();
                 }
@@ -154,9 +152,18 @@ public class Server{
         clientMap.put(ch.username, ch);
     }
 
-    public void registerNewUser(User user){
-        userProfileMap.put(user.username, user);
+    public void registerNewUser(UserCredentials userCredentials){
+        userProfileMap.put(userCredentials.username, userCredentials);
         saveUsers();
+    }
+
+    public String getRegisteredUsers(){
+        try {
+            return mapper.writeValueAsString(userProfileMap.keySet());
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+        }
+        return "";
     }
 
     public static void main(String[] args){
