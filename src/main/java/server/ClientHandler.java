@@ -1,14 +1,20 @@
 package server;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import common.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import redis.clients.jedis.Jedis;
 
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
 
 class ClientHandler implements Runnable {
     private Server server;
@@ -16,7 +22,9 @@ class ClientHandler implements Runnable {
     private ObjectOutputStream out;
     private ObjectInputStream in;
     private boolean isActive = true;
+    private Jedis jedis = new Jedis("localhost", 6379);
     String username;
+    private static final ObjectMapper mapper = new ObjectMapper();
 
     private static final Logger log = LoggerFactory.getLogger(ClientHandler.class);
 
@@ -78,6 +86,14 @@ class ClientHandler implements Runnable {
                 server.registerClientHandler(this);
                 sendMessage(Message.registeredUsersList(username, server.getRegisteredUsers()));
                 server.messageQueue.add(Message.userJoined(username));
+
+                List<String> chatroomList = getClientChatrooms();
+                chatroomList.forEach((chatroom) -> {
+                    log.info("Chatroom: {}", chatroom);
+                    getChatHistory(chatroom).forEach(this::sendMessage);
+                });
+
+
             } else {
                 sendMessage(Message.loginFailed(msg.sender, "User already logged in."));
                 log.info("User {} unable to log in. Reason: Already signed in.", msg.sender);
@@ -87,6 +103,31 @@ class ClientHandler implements Runnable {
             log.info("User {} unable to log in. Reason: Invalid credentials.", msg.sender);
         }
 
+    }
+
+    private List<String> getClientChatrooms(){
+        Set<String> chatroomIdsSet = jedis.smembers("chatroomIds");
+        List<String> clientChatroomList = new ArrayList<>();
+        chatroomIdsSet.forEach((chatroomId)->{
+            if (chatroomId.contains(username) || chatroomId.equals(Message.GLOBAL)) {
+                clientChatroomList.add(chatroomId);
+            }
+        });
+        return clientChatroomList;
+    }
+
+    private List<Message> getChatHistory(String chatroomId){
+        List<Message> messageList = new ArrayList<>();
+        List<String> jedisMessageList = jedis.lrange(chatroomId + "_chatHistory", 0, -1);
+        jedisMessageList.forEach((message) -> {
+            try {
+                Message msg = mapper.readValue(message, Message.class);
+                messageList.add(msg);
+            } catch (JsonProcessingException e) {
+                e.printStackTrace();
+            }
+        });
+        return messageList;
     }
 
     private void registerUser(Message msg) {

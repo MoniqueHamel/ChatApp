@@ -67,7 +67,7 @@ public class Gui {
             @Override
             public void actionPerformed(ActionEvent actionEvent) {
                 loginFailedLabel.setVisible(false);
-                String username = usernameInputField.getText();
+                String username = usernameInputField.getText().trim();
                 String password = String.valueOf(passwordInputField.getPassword());
                 client.sendLoginDetails(username, password);
             }
@@ -77,9 +77,13 @@ public class Gui {
             @Override
             public void actionPerformed(ActionEvent actionEvent) {
                 loginFailedLabel.setVisible(false);
-                String username = usernameInputField.getText();
+                String username = usernameInputField.getText().trim();
                 String password = String.valueOf(passwordInputField.getPassword());
-                client.sendRegistrationDetails(username, password);
+                if (username.equals("") || username.startsWith("#") || password.equals("")){
+                    showLoginFailedMessage("Invalid username and/or password!");
+                } else {
+                    client.sendRegistrationDetails(username, password);
+                }
             }
         }));
 

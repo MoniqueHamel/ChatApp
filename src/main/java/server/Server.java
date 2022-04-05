@@ -2,10 +2,12 @@ package server;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import common.Chatroom;
 import common.Message;
 import common.Message.MessageType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import redis.clients.jedis.Jedis;
 
 import java.io.*;
 import java.net.*;
@@ -21,10 +23,12 @@ public class Server{
     private ScheduledExecutorService clientChecker;
     private Map<String, ClientHandler> clientMap;
     private Map<String, UserCredentials> userProfileMap;
+    private Map<String, Chatroom> chatroomMap = new HashMap<>();
     Queue<Message> messageQueue;
     private static final String USERS_FILE = "usersFile.txt";
     private static final Logger log = LoggerFactory.getLogger(Server.class);
     private static final ObjectMapper mapper = new ObjectMapper();
+    private final Jedis jedis = new Jedis("localhost", 6379);
 
     public void start(int port) {
         clientMap = new ConcurrentHashMap<>();
@@ -61,6 +65,14 @@ public class Server{
             if (!messageQueue.isEmpty()){
                 Message message = messageQueue.remove();
                 if(message.destination == null || message.destination.equals(Message.GLOBAL)){
+                    if (Message.GLOBAL.equals(message.destination)){
+                        try {
+                            String messageString = mapper.writeValueAsString(message);
+                            jedis.rpush(Message.GLOBAL + "_chatHistory", messageString);
+                        } catch (JsonProcessingException e) {
+                            e.printStackTrace();
+                        }
+                    }
                     clientMap.forEach((username, handler)->{
                         handler.sendMessage(message);
                         if (message.type == MessageType.USER_JOINED) {
@@ -70,6 +82,26 @@ public class Server{
                         }
                     });
                 } else {
+                    String chatroomId = Chatroom.getChatroomIdFor(message.sender, message.destination);
+                    boolean chatroomExists = jedis.sismember("chatroomIds", chatroomId);
+                    log.info("Chatroom {} exists: {}", chatroomId, chatroomExists);
+                    if (!chatroomExists){
+                        jedis.sadd("chatroomIds", chatroomId);
+                        long numAdded = jedis.sadd(chatroomId + "_members", message.sender, message.destination);
+                        log.info("Added {} members to chatroom {}", numAdded, chatroomId);
+                    }
+                    try {
+                        String msgString = mapper.writeValueAsString(message);
+                        jedis.rpush(chatroomId + "_chatHistory", msgString);
+                    } catch (JsonProcessingException e) {
+                        e.printStackTrace();
+                    }
+//                    if (!chatroomMap.containsKey(chatroomId)){
+//                        chatroomMap.put(chatroomId, new Chatroom());
+//                        chatroomMap.get(chatroomId).addMember(message.sender);
+//                        chatroomMap.get(chatroomId).addMember(message.destination);
+//                    }
+//                    chatroomMap.get(chatroomId).addMessage(message);
                     clientMap.get(message.sender)
                                     .sendMessage(message);
                     clientMap.get(message.destination)
@@ -131,6 +163,7 @@ public class Server{
     }
 
     private void readUserProfiles(){
+        jedis.sadd("chatroomIds", Message.GLOBAL);
         userProfileMap = new HashMap<>();
         if (!Files.exists(Paths.get(USERS_FILE))) return;
         try {
@@ -139,6 +172,8 @@ public class Server{
                 try {
                     UserCredentials userCredentials = mapper.readValue(json, UserCredentials.class);
                     userProfileMap.put(userCredentials.username, userCredentials);
+                    jedis.sadd(Message.GLOBAL + "_members", userCredentials.username);
+                    //Todo: use pipelining when adding users here.
                 } catch (JsonProcessingException e) {
                     e.printStackTrace();
                 }
@@ -153,6 +188,8 @@ public class Server{
     }
 
     public void registerNewUser(UserCredentials userCredentials){
+        jedis.sadd("chatroomIds", Message.GLOBAL);
+        jedis.sadd(Message.GLOBAL + "_members", userCredentials.username);
         userProfileMap.put(userCredentials.username, userCredentials);
         saveUsers();
     }

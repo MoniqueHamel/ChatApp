@@ -73,7 +73,7 @@ public class Client {
                     switch (message.type){
                         case USER_MESSAGE:
                             String sender = message.sender.equals(username) ? "You" : message.sender;
-                            appendMessageToChat(sender, message.destination, message.message);
+                            appendMessageToChat(message.sender, message.destination, message.message);
                             if (gui.getSelectedUser().equals(Message.GLOBAL)){
                                 if (message.destination.equals(Message.GLOBAL)){
                                     gui.appendTextToMessageBox(sender + ": " + message.message);
@@ -157,10 +157,15 @@ public class Client {
         String sender = username.equals(this.username) ? "You" : username;
         if (destination.equals(Message.GLOBAL)){
             String chat = String.format("%s\n%s: %s", chatMap.get(Message.GLOBAL), sender, text);
+            log.info("Append message \"{}\". From {} to {}.", text, username, destination);
             chatMap.put(Message.GLOBAL, chat);
         } else {
-            String chat = String.format("%s\n%s: %s", chatMap.get(username), sender, text);
+            String existingChat = chatMap.get(username) == null ? "" : chatMap.get(username);
+            String chat = String.format("%s\n%s: %s", existingChat, sender, text);
+            log.info("Append message \"{}\". From {} to {}.", text, username, destination);
+            log.info("Chat: {}", chat);
             chatMap.put(username, chat);
+            chatMap.put(destination, chat);
         }
     }
 

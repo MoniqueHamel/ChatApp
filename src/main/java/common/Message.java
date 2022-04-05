@@ -4,11 +4,18 @@ import java.io.Serializable;
 
 public class Message implements Serializable {
     public static final long serialVersionUID = 1L;
-    public final String sender;
-    public final String message;
-    public final MessageType type;
-    public final String destination;
+    public String sender;
+    public String message;
+    public MessageType type;
+    public String destination;
     public static final String GLOBAL = "#Global";
+
+    private Message(){
+        sender = null;
+        message = null;
+        type = null;
+        destination = null;
+    }
 
     private Message(String sender, String message, MessageType type){
         this.sender = sender;
