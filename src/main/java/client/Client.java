@@ -87,13 +87,13 @@ public class Client {
                             }
                             break;
                         case USER_LEFT:
-                            gui.appendTextToMessageBox(message.sender + " has left the chat!");
+                            //gui.appendTextToMessageBox(message.sender + " has left the chat!");
                             if(!message.sender.equals(username)) {
                                 gui.removeUserFromActiveUserList(message.sender);
                             }
                             break;
                         case USER_JOINED:
-                            gui.appendTextToMessageBox(message.sender + " has joined the chat!");
+                            //gui.appendTextToMessageBox(message.sender + " has joined the chat!");
                             if(!message.sender.equals(username)) {
                                 gui.addUserToActiveUserList(message.sender, true);
                             }
@@ -156,12 +156,12 @@ public class Client {
     public void appendMessageToChat(String username, String destination, String text){
         String sender = username.equals(this.username) ? "You" : username;
         if (destination.equals(Message.GLOBAL)){
-            String chat = String.format("%s\n%s: %s", chatMap.get(Message.GLOBAL), sender, text);
+            String chat = String.format("%s%s: %s\n", chatMap.get(Message.GLOBAL), sender, text);
             log.info("Append message \"{}\". From {} to {}.", text, username, destination);
             chatMap.put(Message.GLOBAL, chat);
         } else {
             String existingChat = chatMap.get(username) == null ? "" : chatMap.get(username);
-            String chat = String.format("%s\n%s: %s", existingChat, sender, text);
+            String chat = String.format("%s%s: %s\n", existingChat, sender, text);
             log.info("Append message \"{}\". From {} to {}.", text, username, destination);
             log.info("Chat: {}", chat);
             chatMap.put(username, chat);

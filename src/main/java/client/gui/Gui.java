@@ -262,14 +262,15 @@ public class Gui {
     }
 
     private void sendMessage(){
-        String text = inputArea.getText();
+        String text = inputArea.getText().trim();
+        if (text.equals("")) return;
         client.sendUserMessage(text, listOfActiveUsers.getSelectedValue().username);
         inputArea.setText("");
         inputArea.requestFocusInWindow();
     }
 
     public void appendTextToMessageBox(String text){
-        messageBox.append("\n" + text);
+        messageBox.append(text + "\n");
     }
 
     public void showLoginFailedMessage(String message){
