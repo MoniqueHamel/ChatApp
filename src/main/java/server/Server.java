@@ -7,7 +7,6 @@ import common.Message;
 import common.Message.MessageType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import redis.clients.jedis.Jedis;
 
 import java.io.*;
 import java.net.*;
@@ -28,7 +27,6 @@ public class Server{
     private static final String USERS_FILE = "usersFile.txt";
     private static final Logger log = LoggerFactory.getLogger(Server.class);
     private static final ObjectMapper mapper = new ObjectMapper();
-    private final Jedis jedis = new Jedis("localhost", 6379);
 
     public void start(int port) {
         clientMap = new ConcurrentHashMap<>();
@@ -66,12 +64,7 @@ public class Server{
                 Message message = messageQueue.remove();
                 if(message.destination == null || message.destination.equals(Message.GLOBAL)){
                     if (Message.GLOBAL.equals(message.destination)){
-                        try {
-                            String messageString = mapper.writeValueAsString(message);
-                            jedis.rpush(Message.GLOBAL + "_chatHistory", messageString);
-                        } catch (JsonProcessingException e) {
-                            e.printStackTrace();
-                        }
+                        Chatroom.addMessageToChatHistory(Message.GLOBAL, message);
                     }
                     clientMap.forEach((username, handler)->{
                         handler.sendMessage(message);
@@ -83,34 +76,25 @@ public class Server{
                     });
                 } else {
                     String chatroomId = Chatroom.getChatroomIdFor(message.sender, message.destination);
-                    boolean chatroomExists = jedis.sismember("chatroomIds", chatroomId);
+                    boolean chatroomExists = Chatroom.doesChatroomExist(chatroomId);
                     log.info("Chatroom {} exists: {}", chatroomId, chatroomExists);
                     if (!chatroomExists){
-                        jedis.sadd("chatroomIds", chatroomId);
-                        long numAdded = jedis.sadd(chatroomId + "_members", message.sender, message.destination);
-                        log.info("Added {} members to chatroom {}", numAdded, chatroomId);
+                        Chatroom.createChatroom(chatroomId, Arrays.asList(message.sender, message.destination));
                     }
-                    try {
-                        String msgString = mapper.writeValueAsString(message);
-                        jedis.rpush(chatroomId + "_chatHistory", msgString);
-                    } catch (JsonProcessingException e) {
-                        e.printStackTrace();
-                    }
-//                    if (!chatroomMap.containsKey(chatroomId)){
-//                        chatroomMap.put(chatroomId, new Chatroom());
-//                        chatroomMap.get(chatroomId).addMember(message.sender);
-//                        chatroomMap.get(chatroomId).addMember(message.destination);
-//                    }
-//                    chatroomMap.get(chatroomId).addMessage(message);
-                    clientMap.get(message.sender)
-                                    .sendMessage(message);
-                    clientMap.get(message.destination)
-                            .sendMessage(message);
+                    Chatroom.addMessageToChatHistory(chatroomId, message);
+                    sendDirectMessage(message, message.sender, message.destination);
                 }
 
             }
         },0,100, TimeUnit.MILLISECONDS);
 
+    }
+
+    private void sendDirectMessage(Message msg, String sender, String destination){
+        clientMap.get(sender)
+                .sendMessage(msg);
+        clientMap.get(destination)
+                .sendMessage(msg);
     }
 
     private void handleNewClients(int port){
@@ -163,21 +147,21 @@ public class Server{
     }
 
     private void readUserProfiles(){
-        jedis.sadd("chatroomIds", Message.GLOBAL);
         userProfileMap = new HashMap<>();
         if (!Files.exists(Paths.get(USERS_FILE))) return;
         try {
             List<String> userJsons = Files.readAllLines(Paths.get(USERS_FILE));
+            List<String> usernames = new ArrayList<>();
             userJsons.forEach((json) -> {
                 try {
                     UserCredentials userCredentials = mapper.readValue(json, UserCredentials.class);
                     userProfileMap.put(userCredentials.username, userCredentials);
-                    jedis.sadd(Message.GLOBAL + "_members", userCredentials.username);
-                    //Todo: use pipelining when adding users here.
+                    usernames.add(userCredentials.username);
                 } catch (JsonProcessingException e) {
                     e.printStackTrace();
                 }
             });
+            Chatroom.createChatroom(Message.GLOBAL, usernames);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -188,8 +172,8 @@ public class Server{
     }
 
     public void registerNewUser(UserCredentials userCredentials){
-        jedis.sadd("chatroomIds", Message.GLOBAL);
-        jedis.sadd(Message.GLOBAL + "_members", userCredentials.username);
+//        jedis.sadd("chatroomIds", Message.GLOBAL);
+        Chatroom.addUserToChatroom(Message.GLOBAL, userCredentials.username);
         userProfileMap.put(userCredentials.username, userCredentials);
         saveUsers();
     }
