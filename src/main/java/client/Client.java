@@ -1,6 +1,7 @@
 package client;
 
-import client.gui.Gui;
+import client.gui.LoginScreen;
+import client.gui.MainScreen;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import common.Message;
@@ -11,7 +12,6 @@ import javax.swing.*;
 import java.io.*;
 import java.net.*;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -24,7 +24,8 @@ public class Client {
     private String username;
     private ExecutorService exec;
     private Map<String, String> chatMap;
-    Gui gui;
+    MainScreen mainScreen;
+    LoginScreen loginScreen;
 
     private static final Logger log = LoggerFactory.getLogger(Client.class);
 
@@ -37,8 +38,9 @@ public class Client {
             e.printStackTrace();
         }
         chatMap = new HashMap<>();
-        gui = new Gui(this);
-        gui.displayLoginView();
+//        mainScreen = new MainScreen(this);
+        loginScreen = new LoginScreen(this);
+//        mainScreen.displayLoginView();
 
         exec = Executors.newSingleThreadExecutor();
         exec.execute(this::readMessage);
@@ -74,41 +76,42 @@ public class Client {
                         case USER_MESSAGE:
                             String sender = message.sender.equals(username) ? "You" : message.sender;
                             appendMessageToChat(message.sender, message.destination, message.message);
-                            if (gui.getSelectedUser().equals(Message.GLOBAL)){
+                            if (mainScreen.getSelectedUser().equals(Message.GLOBAL)){
                                 if (message.destination.equals(Message.GLOBAL)){
-                                    gui.appendTextToMessageBox(sender + ": " + message.message);
+                                    mainScreen.appendTextToMessageBox(sender + ": " + message.message);
                                 }
-                            } else if (gui.getSelectedUser().equals(sender)){
+                            } else if (mainScreen.getSelectedUser().equals(sender)){
                                 if(message.destination.equals(username)){
-                                    gui.appendTextToMessageBox(sender + ": " + message.message);
+                                    mainScreen.appendTextToMessageBox(sender + ": " + message.message);
                                 }
                             } else if (message.sender.equals(username)){
-                                gui.appendTextToMessageBox(sender + ": " + message.message);
+                                mainScreen.appendTextToMessageBox(sender + ": " + message.message);
                             }
                             break;
                         case USER_LEFT:
                             //gui.appendTextToMessageBox(message.sender + " has left the chat!");
                             if(!message.sender.equals(username)) {
-                                gui.removeUserFromActiveUserList(message.sender);
+                                mainScreen.removeUserFromActiveUserList(message.sender);
                             }
                             break;
                         case USER_JOINED:
                             //gui.appendTextToMessageBox(message.sender + " has joined the chat!");
                             if(!message.sender.equals(username)) {
-                                gui.addUserToActiveUserList(message.sender, true);
+                                mainScreen.addUserToActiveUserList(message.sender, true);
                             }
                             break;
                         case ADD_ACTIVE_USER:
-                            gui.addUserToActiveUserList(message.sender, true);
+                            mainScreen.addUserToActiveUserList(message.sender, true);
                             break;
                         case LOGIN_SUCCESSFUL:
                         case REGISTER_SUCCESSFUL:
                             setClientUsername(message.destination);
-                            gui.displayMainView();
+                            mainScreen = new MainScreen(this);
+                            loginScreen.dispose();
                             break;
                         case LOGIN_FAILED:
                         case REGISTER_FAILED:
-                            gui.showLoginFailedMessage(message.message);
+                            loginScreen.showLoginFailedMessage(message.message);
                             break;
                         case REGISTERED_USERS_LIST:
                             ObjectMapper mapper = new ObjectMapper();
@@ -116,7 +119,7 @@ public class Client {
                             Set<String> registeredUsers = mapper.readValue(message.message, setTypeReference);
                             log.info("isEventDispatchThread = {}", SwingUtilities.isEventDispatchThread());
                             registeredUsers.forEach((user) -> {
-                                gui.addUserToActiveUserList(user, false);
+                                mainScreen.addUserToActiveUserList(user, false);
                             });
                             break;
                     }
