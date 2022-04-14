@@ -24,6 +24,7 @@ public class Gui {
     private JPanel southPanel;
     private JPanel westPanel;
     private JList<UserInfo> listOfActiveUsers;
+    JButton newChatroomButton = new JButton("Create chatroom");
     ActiveUsersModel userListModel = new ActiveUsersModel();
     private String selectedUser = Message.GLOBAL;
     private JLabel loginFailedLabel = new JLabel();
@@ -49,8 +50,9 @@ public class Gui {
         mainFrame.setLayout(new GridBagLayout());
         setupGui();
         mainFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        mainFrame.setSize(400, 400);
+        mainFrame.setSize(700, 400);
         mainFrame.setVisible(false);
+
         loginFrame = new JFrame("Choose your username!");
         loginFrame.setLayout(new GridBagLayout());
         JPanel loginPanel = new JPanel(new GridBagLayout());
@@ -90,20 +92,27 @@ public class Gui {
         GridBagConstraints labelConstraints = new GridBagConstraints();
         setGridBagConstraints(labelConstraints, 0, 0, 1, 1, true);
         labelConstraints.gridwidth = 2;
+
         GridBagConstraints left = new GridBagConstraints();
         setGridBagConstraints(left, 0, 1, 0.2, 0.2, true);
+
         GridBagConstraints right = new GridBagConstraints();
         setGridBagConstraints(right, 1, 1, 0.8, 0.8, false);
         right.fill = GridBagConstraints.HORIZONTAL;
+
         GridBagConstraints west = new GridBagConstraints();
         setGridBagConstraints(west, 0, 2, 0.2, 0.2, true);
+
         GridBagConstraints east = new GridBagConstraints();
         setGridBagConstraints(east, 1, 2, 0.8, 0.8, false);
         east.fill = GridBagConstraints.HORIZONTAL;
+
         GridBagConstraints leftSouth = new GridBagConstraints();
         setGridBagConstraints(leftSouth, 0, 3, 0, 0, false);
+
         GridBagConstraints south = new GridBagConstraints();
         setGridBagConstraints(south, 1, 3, 0, 0, false);
+
         GridBagConstraints c = new GridBagConstraints();
         setGridBagConstraints(c, 0, 0, 1, 1, false);
 
@@ -131,22 +140,23 @@ public class Gui {
     private void setupGui(){
         northPanel = new JPanel(new GridBagLayout());
         southPanel = new JPanel(new GridBagLayout());
-        westPanel = new JPanel();
+        westPanel = new JPanel(new GridBagLayout());
 
         GridBagConstraints top = new GridBagConstraints();
-        setGridBagConstraints(top, 1, 0, 1.0, 0.9, true);
+        setGridBagConstraints(top, 1, 0, 0.8, 0.9, true);
 
         GridBagConstraints bottom = new GridBagConstraints();
-        setGridBagConstraints(bottom, 1, 1, 1.0, 0.1, true);
+        setGridBagConstraints(bottom, 1, 1, 0.8, 0.1, true);
 
         GridBagConstraints left = new GridBagConstraints();
-        setGridBagConstraints(left, 0, 0,1, 1, true);
+        setGridBagConstraints(left, 0, 0,0.2, 1.0, true);
         left.gridheight = 2;
 
+        setupAndAddNewChatroomButton();
+        setupAndAddOnlineClientsPanel();
         setupAndAddMessageBox();
         setupAndAddInputArea();
         setupAndAddSendMessageButton();
-        setupAndAddOnlineClientsPanel();
 
         mainFrame.add(northPanel, top);
         mainFrame.add(southPanel, bottom);
@@ -156,6 +166,10 @@ public class Gui {
     private void setupAndAddOnlineClientsPanel(){
         userListModel.add(Message.GLOBAL, true);
         listOfActiveUsers = new JList<>(userListModel);
+        Dimension d = listOfActiveUsers.getPreferredScrollableViewportSize();
+        d.width = newChatroomButton.getPreferredSize().width;
+//        listOfActiveUsers.setPreferredSize(d);
+        listOfActiveUsers.setFixedCellWidth(d.width);
         listOfActiveUsers.setCellRenderer(new ActiveUserListRenderer());
         listOfActiveUsers.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         listOfActiveUsers.setSelectedValue(Message.GLOBAL, true);
@@ -186,9 +200,9 @@ public class Gui {
         });
 
         GridBagConstraints c = new GridBagConstraints();
-        setGridBagConstraints(c, 0, 0, 1, 1, true);
+        setGridBagConstraints(c, 0, 1, 1.0, 0.9, true);
 
-        westPanel.add(listOfActiveUsers);
+        westPanel.add(listOfActiveUsers, c);
     }
 
     private void switchChat(){
@@ -259,6 +273,13 @@ public class Gui {
         sendMessageButton.addActionListener(actionEvent -> {
             sendMessage();
         });
+    }
+
+    private void setupAndAddNewChatroomButton(){
+        GridBagConstraints c = new GridBagConstraints();
+        setGridBagConstraints(c, 0, 0, 1.0, 0.1, false);
+
+        westPanel.add(newChatroomButton, c);
     }
 
     private void sendMessage(){
