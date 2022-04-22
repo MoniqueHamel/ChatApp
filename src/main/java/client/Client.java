@@ -46,7 +46,7 @@ public class Client {
         exec.execute(this::readMessage);
     }
 
-    private void sendMessage(Message msg){
+    public void sendMessage(Message msg){
         try {
             out.writeObject(msg);
         } catch (IOException e) {
@@ -67,6 +67,8 @@ public class Client {
     }
 
     public void readMessage(){
+        ObjectMapper mapper = new ObjectMapper();
+        TypeReference<Set<String>> setTypeReference = new TypeReference<>() {};
         try {
             Message message;
             try {
@@ -76,6 +78,10 @@ public class Client {
                         case USER_MESSAGE:
                             String sender = message.sender.equals(username) ? "You" : message.sender;
                             appendMessageToChat(message.sender, message.destination, message.message);
+                            if (isPrivateChatRoom(message.destination) && mainScreen.getSelectedUser().equals(message.destination)){
+                                mainScreen.appendTextToMessageBox(sender + ": " + message.message);
+                                continue;
+                            }
                             if (mainScreen.getSelectedUser().equals(Message.GLOBAL)){
                                 if (message.destination.equals(Message.GLOBAL)){
                                     mainScreen.appendTextToMessageBox(sender + ": " + message.message);
@@ -114,13 +120,24 @@ public class Client {
                             loginScreen.showLoginFailedMessage(message.message);
                             break;
                         case REGISTERED_USERS_LIST:
-                            ObjectMapper mapper = new ObjectMapper();
-                            TypeReference<Set<String>> setTypeReference = new TypeReference<>() {};
                             Set<String> registeredUsers = mapper.readValue(message.message, setTypeReference);
                             log.info("isEventDispatchThread = {}", SwingUtilities.isEventDispatchThread());
                             registeredUsers.forEach((user) -> {
                                 mainScreen.addUserToActiveUserList(user, false);
                             });
+                            break;
+                        case CHATROOM_CREATED:
+                            mainScreen.addUserToActiveUserList(message.message, true);
+                            break;
+                        case USER_CHATROOM_LIST:
+                            Set<String> privateChatrooms = mapper.readValue(message.message, setTypeReference);
+                            log.info("isEventDispatchThread = {}", SwingUtilities.isEventDispatchThread());
+                            privateChatrooms.forEach((chatroomId) -> {
+                                mainScreen.addUserToActiveUserList(chatroomId, true);
+                            });
+                            break;
+                        case INVITE_USER:
+                            mainScreen.addUserToActiveUserList(message.message, true);
                             break;
                     }
                 }
@@ -131,6 +148,10 @@ public class Client {
         } catch (IOException | ClassNotFoundException e) {
             e.printStackTrace();
         }
+    }
+
+    private boolean isPrivateChatRoom(String name) {
+        return name != null && !name.equals(Message.GLOBAL) && name.startsWith("#");
     }
 
     public void stopConnection(){

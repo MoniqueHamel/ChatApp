@@ -75,6 +75,18 @@ public class Message implements Serializable {
         return new Message("", destination, list, MessageType.REGISTERED_USERS_LIST);
     }
 
+    public static Message chatroomCreated(String sender, String destination, String chatroomName){
+        return new Message(sender, destination, chatroomName, MessageType.CHATROOM_CREATED);
+    }
+
+    public static Message userChatroomList(String destination, String list){
+        return new Message("", destination, list, MessageType.USER_CHATROOM_LIST);
+    }
+
+    public static Message inviteUser(String sender, String destination, String chatroomId){
+        return new Message(sender, destination, chatroomId, MessageType.INVITE_USER);
+    }
+
     public enum MessageType{
         USER_JOINED,
         USER_LEFT,
@@ -86,6 +98,9 @@ public class Message implements Serializable {
         LOGIN_SUCCESSFUL,
         REGISTER_FAILED,
         REGISTER_SUCCESSFUL,
-        REGISTERED_USERS_LIST
+        REGISTERED_USERS_LIST,
+        CHATROOM_CREATED,
+        USER_CHATROOM_LIST,
+        INVITE_USER
     }
 }

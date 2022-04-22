@@ -2,6 +2,7 @@ package server;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import common.Chatroom;
 import common.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,10 +45,17 @@ class ClientHandler implements Runnable {
             try {
                 while (true) {
                     Message msg = (Message) in.readObject();
+                    log.info("From {} to {}: Message: {}", msg.sender, msg.destination, msg.message);
                     if (msg.type == Message.MessageType.LOGIN_MESSAGE) {
                         authenticateUser(msg);
                     } else if (msg.type == Message.MessageType.REGISTER_MESSAGE) {
                         registerUser(msg);
+                    } else if (msg.type == Message.MessageType.CHATROOM_CREATED){
+                        server.createChatroom(msg.sender, msg.message);
+                        sendMessage(Message.chatroomCreated(null, username, msg.message));
+                    } else if (msg.type == Message.MessageType.INVITE_USER){
+                        Chatroom.addUserToChatroom(msg.message, msg.destination);
+                        server.messageQueue.add(msg);
                     } else {
                         server.messageQueue.add(msg);
                     }
@@ -88,10 +96,22 @@ class ClientHandler implements Runnable {
                 server.messageQueue.add(Message.userJoined(username));
 
                 List<String> chatroomList = getClientChatrooms();
+                List<String> privateChatroomList = new ArrayList<>();
                 chatroomList.forEach((chatroom) -> {
-                    log.info("Chatroom: {}", chatroom);
+                    if (Chatroom.isPrivateChatroom(chatroom)){
+                        privateChatroomList.add(chatroom);
+                    }
                     getChatHistory(chatroom).forEach(this::sendMessage);
                 });
+
+                if(!privateChatroomList.isEmpty()){
+                    try {
+                        String list = new ObjectMapper().writeValueAsString(privateChatroomList);
+                        sendMessage(Message.userChatroomList(username, list));
+                    } catch (JsonProcessingException e) {
+                        e.printStackTrace();
+                    }
+                }
 
 
             } else {
@@ -109,7 +129,11 @@ class ClientHandler implements Runnable {
         Set<String> chatroomIdsSet = jedis.smembers("chatroomIds");
         List<String> clientChatroomList = new ArrayList<>();
         chatroomIdsSet.forEach((chatroomId)->{
-            if (chatroomId.contains(username) || chatroomId.equals(Message.GLOBAL)) {
+            if (Chatroom.isPrivateChatroom(chatroomId)){
+                if (Chatroom.isChatroomMember(username, chatroomId)){
+                    clientChatroomList.add(chatroomId);
+                }
+            } else if (chatroomId.contains(username) || chatroomId.equals(Message.GLOBAL)) {
                 clientChatroomList.add(chatroomId);
             }
         });

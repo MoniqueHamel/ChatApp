@@ -8,6 +8,7 @@ import redis.clients.jedis.Jedis;
 import server.Server;
 
 import java.util.List;
+import java.util.Set;
 
 public class Chatroom {
 
@@ -46,5 +47,17 @@ public class Chatroom {
 
     public static void addUserToChatroom(String chatroomId, String username) {
         jedis.sadd(chatroomId + "_members", username);
+    }
+
+    public static boolean isChatroomMember(String username, String chatroomId){
+        return jedis.sismember(chatroomId + "_members", username);
+    }
+
+    public static boolean isPrivateChatroom(String chatroomId){
+        return chatroomId.startsWith("#") && !chatroomId.equals(Message.GLOBAL);
+    }
+
+    public static Set<String> getChatroomMembers(String chatroomId){
+        return jedis.smembers(chatroomId + "_members");
     }
 }

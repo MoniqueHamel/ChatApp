@@ -39,4 +39,14 @@ public class ActiveUsersModel extends AbstractListModel<UserInfo> {
         list.get(i).setIsOnline(false);
         fireContentsChanged(this, i, i);
     }
+
+    public List<String> getProperUsers(){
+        List<String> properUserList = new ArrayList<>();
+        list.forEach((userInfo)->{
+            if (!userInfo.username.startsWith("#")){
+                properUserList.add(userInfo.username);
+            }
+        });
+        return properUserList;
+    }
 }

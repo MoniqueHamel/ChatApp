@@ -22,7 +22,6 @@ public class Server{
     private ScheduledExecutorService clientChecker;
     private Map<String, ClientHandler> clientMap;
     private Map<String, UserCredentials> userProfileMap;
-    private Map<String, Chatroom> chatroomMap = new HashMap<>();
     Queue<Message> messageQueue;
     private static final String USERS_FILE = "usersFile.txt";
     private static final Logger log = LoggerFactory.getLogger(Server.class);
@@ -75,16 +74,33 @@ public class Server{
                         }
                     });
                 } else {
-                    String chatroomId = Chatroom.getChatroomIdFor(message.sender, message.destination);
-                    boolean chatroomExists = Chatroom.doesChatroomExist(chatroomId);
-                    log.info("Chatroom {} exists: {}", chatroomId, chatroomExists);
-                    if (!chatroomExists){
-                        Chatroom.createChatroom(chatroomId, Arrays.asList(message.sender, message.destination));
+                    if (message.type == MessageType.INVITE_USER){
+                        clientMap.get(message.destination).sendMessage(message);
+                    } else {
+                        String chatroomId;
+                        if (Chatroom.isPrivateChatroom(message.destination)) {
+                            chatroomId = message.destination;
+                            log.info("Message {} sent from {} to {}.",message.message, message.sender, chatroomId);
+                            // Send message to all members
+                            Set<String> members = Chatroom.getChatroomMembers(chatroomId);
+                            members.forEach((member)->{
+                                log.info("From {} to {}: Message: {}", message.sender, member, message.message);
+                                if (clientMap.containsKey(member)) {
+                                    clientMap.get(member).sendMessage(message);
+                                }
+                            });
+                        } else {
+                            chatroomId = Chatroom.getChatroomIdFor(message.sender, message.destination);
+                            boolean chatroomExists = Chatroom.doesChatroomExist(chatroomId);
+                            log.info("Chatroom {} exists: {}", chatroomId, chatroomExists);
+                            if (!chatroomExists){
+                                Chatroom.createChatroom(chatroomId, Arrays.asList(message.sender, message.destination));
+                            }
+                            sendDirectMessage(message, message.sender, message.destination);
+                        }
+                        Chatroom.addMessageToChatHistory(chatroomId, message);
                     }
-                    Chatroom.addMessageToChatHistory(chatroomId, message);
-                    sendDirectMessage(message, message.sender, message.destination);
                 }
-
             }
         },0,100, TimeUnit.MILLISECONDS);
 
@@ -185,6 +201,11 @@ public class Server{
             e.printStackTrace();
         }
         return "";
+    }
+
+    public void createChatroom(String user, String chatroomName){
+        Chatroom.createChatroom(chatroomName, Arrays.asList(user));
+        log.info("{} created by {}", chatroomName, user);
     }
 
     public static void main(String[] args){

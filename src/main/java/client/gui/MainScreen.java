@@ -24,6 +24,7 @@ public class MainScreen {
     private JPanel westPanel;
     private JList<UserInfo> listOfActiveUsers;
     JButton newChatroomButton = new JButton("Create chatroom");
+    JButton addMemberButton = new JButton("Add member");
     ActiveUsersModel userListModel = new ActiveUsersModel();
     private String selectedUser = Message.GLOBAL;
     private JLabel loginFailedLabel = new JLabel();
@@ -72,6 +73,7 @@ public class MainScreen {
 
         setupAndAddNewChatroomButton();
         setupAndAddOnlineClientsPanel();
+        setupAndAddNewChatroomMemberButton();
         setupAndAddMessageBox();
         setupAndAddInputArea();
         setupAndAddSendMessageButton();
@@ -118,7 +120,7 @@ public class MainScreen {
         });
 
         GridBagConstraints c = new GridBagConstraints();
-        setGridBagConstraints(c, 0, 1, 1.0, 0.9, true);
+        setGridBagConstraints(c, 0, 1, 1.0, 0.8, true);
 
         westPanel.add(listOfActiveUsers, c);
     }
@@ -129,6 +131,11 @@ public class MainScreen {
         selectedUser = listOfActiveUsers.getSelectedValue().username;
         text = client.loadChat(selectedUser);
         messageBox.setText(text);
+        if(selectedUser.startsWith("#") && !selectedUser.equals(Message.GLOBAL)){
+            addMemberButton.setVisible(true);
+        } else {
+            addMemberButton.setVisible(false);
+        }
     }
 
     public void addUserToActiveUserList(String user, boolean isOnline){
@@ -198,6 +205,33 @@ public class MainScreen {
         setGridBagConstraints(c, 0, 0, 1.0, 0.1, false);
 
         westPanel.add(newChatroomButton, c);
+
+        newChatroomButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent actionEvent) {
+                String chatroomName = "#" + JOptionPane.showInputDialog("Enter chatroom name: ");
+                client.sendMessage(Message.chatroomCreated(client.getClientUsername(), null, chatroomName));
+            }
+        });
+    }
+
+    private void setupAndAddNewChatroomMemberButton(){
+        GridBagConstraints c = new GridBagConstraints();
+        setGridBagConstraints(c, 0, 2, 1.0, 0.1, false);
+
+        westPanel.add(addMemberButton, c);
+        addMemberButton.setVisible(false);
+
+        addMemberButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent actionEvent) {
+                Object[] users = userListModel.getProperUsers().toArray(new Object[0]);
+                String memberName = (String) JOptionPane.showInputDialog(mainFrame, "Select user to add to chatroom: ", "Invite user",
+                        JOptionPane.PLAIN_MESSAGE, null, users, users[0]);
+                client.sendMessage(Message.inviteUser(client.getClientUsername(), memberName, getSelectedUser()));
+            }
+
+        });
     }
 
     private void sendMessage(){
